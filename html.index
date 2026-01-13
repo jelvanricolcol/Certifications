@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Certificate Notebook</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&amp;family=Crimson+Text:ital,wght@0,400;0,600;1,400&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    * {
+      font-family: 'Crimson Text', serif;
+    }
+    
+    .title-font {
+      font-family: 'Playfair Display', serif;
+    }
+    
+    .notebook-container {
+      perspective: 2000px;
+      transform-style: preserve-3d;
+    }
+    
+    .notebook {
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.3s ease;
+    }
+    
+    .notebook:hover {
+      transform: rotateX(2deg);
+    }
+    
+    .page {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transform-origin: left center;
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+    
+    .page.flipped {
+      transform: rotateY(-180deg);
+    }
+    
+    .page-front, .page-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border-radius: 0 8px 8px 0;
+      overflow: hidden;
+    }
+    
+    .page-back {
+      transform: rotateY(180deg);
+    }
+    
+    .page-lines {
+      background-image: repeating-linear-gradient(
+        transparent,
+        transparent 31px,
+        #d4c4a8 31px,
+        #d4c4a8 32px
+      );
+      background-position: 0 20px;
+    }
+    
+    .margin-line {
+      position: absolute;
+      left: 40px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #e8b4b4;
+      opacity: 0.6;
+    }
+    
+    .spiral-binding {
+      position: absolute;
+      left: -15px;
+      top: 0;
+      bottom: 0;
+      width: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      padding: 20px 0;
+      z-index: 100;
+    }
+    
+    .spiral-ring {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #2d2d2d;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4a4a4a 0%, #2d2d2d 50%, #1a1a1a 100%);
+      box-shadow: inset 2px 2px 4px rgba(255,255,255,0.1), 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .certificate-seal {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #c9a227 0%, #f4d03f 30%, #c9a227 60%, #8b7355 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 
+        0 4px 15px rgba(201, 162, 39, 0.4),
+        inset 0 2px 4px rgba(255,255,255,0.4),
+        inset 0 -2px 4px rgba(0,0,0,0.2);
+      animation: shimmer 3s ease-in-out infinite;
+    }
+    
+    @keyframes shimmer {
+      0%, 100% { box-shadow: 0 4px 15px rgba(201, 162, 39, 0.4), inset 0 2px 4px rgba(255,255,255,0.4); }
+      50% { box-shadow: 0 4px 25px rgba(201, 162, 39, 0.6), inset 0 2px 8px rgba(255,255,255,0.6); }
+    }
+    
+    .certificate-border {
+      border: 3px double currentColor;
+      position: relative;
+    }
+    
+    .certificate-border::before {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border: 1px solid currentColor;
+      opacity: 0.5;
+    }
+    
+    .nav-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .nav-dot:hover {
+      transform: scale(1.3);
+    }
+    
+    .nav-dot.active {
+      transform: scale(1.2);
+    }
+    
+    .page-number {
+      position: absolute;
+      bottom: 15px;
+      font-size: 14px;
+      opacity: 0.6;
+    }
+    
+    .cover-texture {
+      background-image: 
+        radial-gradient(circle at 20% 80%, rgba(255,255,255,0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 50%),
+        linear-gradient(135deg, rgba(0,0,0,0.1) 0%, transparent 50%, rgba(255,255,255,0.05) 100%);
+    }
+    
+    .ribbon {
+      position: absolute;
+      right: 20px;
+      top: -5px;
+      width: 30px;
+      height: 60px;
+      background: linear-gradient(135deg, #8b0000 0%, #dc143c 50%, #8b0000 100%);
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+      box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+      z-index: 50;
+    }
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .animate-in {
+      animation: fadeInUp 0.6s ease forwards;
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full m-0 overflow-auto" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
+  <div class="min-h-full w-full flex flex-col items-center justify-center p-8"><!-- Title -->
+   <h1 id="main-title" class="title-font text-3xl md:text-4xl font-bold text-amber-100 mb-8 text-center drop-shadow-lg">📚 My Certifications</h1><!-- Notebook Container -->
+   <div class="notebook-container w-full max-w-4xl mx-auto" style="height: 500px;">
+    <div class="notebook relative w-full h-full"><!-- Spiral Binding -->
+     <div class="spiral-binding">
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+      <div class="spiral-ring"></div>
+     </div><!-- Ribbon Bookmark -->
+     <div class="ribbon"></div><!-- Back Cover -->
+     <div class="absolute w-full h-full rounded-r-lg cover-texture" style="background-color: #2c1810; box-shadow: 5px 5px 20px rgba(0,0,0,0.5);"></div><!-- Pages Container -->
+     <div id="pages-container" class="absolute w-full h-full"><!-- Page 4 (Certificate 4) -->
+      <div class="page" data-page="4">
+       <div class="page-front" style="background-color: #ffffff;">
+        <div class="h-full flex flex-col items-center justify-center p-8">
+         <div class="certificate-border p-6 w-full max-w-md text-center" style="border-color: #8b7355;">
+          <div class="certificate-seal mx-auto mb-4"><span class="text-2xl">🏅</span>
+          </div>
+          <p class="text-sm uppercase tracking-widest mb-2" style="color: #8b7355;">Certificate of Achievement</p>
+          <h3 id="cert-4-title" class="title-font text-2xl font-bold mb-3" style="color: #2c1810;">Project Management</h3>
+          <div class="w-16 h-0.5 mx-auto mb-3" style="background: linear-gradient(90deg, transparent, #c9a227, transparent);"></div>
+          <p class="text-sm mb-2" style="color: #5a4a3a;">Issued by</p>
+          <p id="cert-4-issuer" class="title-font text-lg font-semibold mb-3" style="color: #2c1810;">PMI</p>
+          <p id="cert-4-date" class="text-sm" style="color: #8b7355;">2023</p>
+         </div>
+        </div>
+       </div>
+       <div class="page-back" style="background-color: #2c1810;">
+        <div class="h-full flex items-center justify-center cover-texture">
+         <p class="title-font text-xl" style="color: #c9a227;">✨ The End ✨</p>
+        </div>
+       </div>
+      </div><!-- Page 3 (Certificate 3) -->
+      <div class="page" data-page="3">
+       <div class="page-front" style="background-color: #ffffff;">
+        <div class="h-full flex flex-col items-center justify-center p-8">
+         <div class="certificate-border p-6 w-full max-w-md text-center" style="border-color: #6b5b95;">
+          <div class="certificate-seal mx-auto mb-4"><span class="text-2xl">🎨</span>
+          </div>
+          <p class="text-sm uppercase tracking-widest mb-2" style="color: #6b5b95;">Certificate of Achievement</p>
+          <h3 id="cert-3-title" class="title-font text-2xl font-bold mb-3" style="color: #2c1810;">UX Design</h3>
+          <div class="w-16 h-0.5 mx-auto mb-3" style="background: linear-gradient(90deg, transparent, #c9a227, transparent);"></div>
+          <p class="text-sm mb-2" style="color: #5a4a3a;">Issued by</p>
+          <p id="cert-3-issuer" class="title-font text-lg font-semibold mb-3" style="color: #2c1810;">Meta</p>
+          <p id="cert-3-date" class="text-sm" style="color: #6b5b95;">2023</p>
+         </div>
+        </div>
+       </div>
+       <div class="page-back" style="background-color: #ffffff;">
+        <div class="h-full flex items-center justify-center p-8">
+         <p class="text-lg italic" style="color: #5a4a3a;">"Design is not just what it looks like. Design is how it works."</p>
+        </div>
+       </div>
+      </div><!-- Page 2 (Certificate 2) -->
+      <div class="page" data-page="2">
+       <div class="page-front" style="background-color: #ffffff;">
+        <div class="h-full flex flex-col items-center justify-center p-8">
+         <div class="certificate-border p-6 w-full max-w-md text-center" style="border-color: #4285f4;">
+          <div class="certificate-seal mx-auto mb-4"><span class="text-2xl">📊</span>
+          </div>
+          <p class="text-sm uppercase tracking-widest mb-2" style="color: #4285f4;">Certificate of Achievement</p>
+          <h3 id="cert-2-title" class="title-font text-2xl font-bold mb-3" style="color: #2c1810;">Data Science</h3>
+          <div class="w-16 h-0.5 mx-auto mb-3" style="background: linear-gradient(90deg, transparent, #c9a227, transparent);"></div>
+          <p class="text-sm mb-2" style="color: #5a4a3a;">Issued by</p>
+          <p id="cert-2-issuer" class="title-font text-lg font-semibold mb-3" style="color: #2c1810;">Google</p>
+          <p id="cert-2-date" class="text-sm" style="color: #4285f4;">2024</p>
+         </div>
+        </div>
+       </div>
+       <div class="page-back" style="background-color: #ffffff;">
+        <div class="h-full flex items-center justify-center p-8">
+         <p class="text-lg italic" style="color: #5a4a3a;">"In God we trust. All others must bring data."</p>
+        </div>
+       </div>
+      </div><!-- Page 1 (Certificate 1) -->
+      <div class="page" data-page="1">
+       <div class="page-front" style="background-color: #ffffff;">
+        <div class="h-full flex flex-col items-center justify-center p-8">
+         <div class="certificate-border p-6 w-full max-w-md text-center" style="border-color: #2ecc71;">
+          <div class="certificate-seal mx-auto mb-4"><span class="text-2xl">💻</span>
+          </div>
+          <p class="text-sm uppercase tracking-widest mb-2" style="color: #2ecc71;">Certificate of Achievement</p>
+          <h3 id="cert-1-title" class="title-font text-2xl font-bold mb-3" style="color: #2c1810;">Web Development</h3>
+          <div class="w-16 h-0.5 mx-auto mb-3" style="background: linear-gradient(90deg, transparent, #c9a227, transparent);"></div>
+          <p class="text-sm mb-2" style="color: #5a4a3a;">Issued by</p>
+          <p id="cert-1-issuer" class="title-font text-lg font-semibold mb-3" style="color: #2c1810;">Coursera</p>
+          <p id="cert-1-date" class="text-sm" style="color: #2ecc71;">2024</p>
+         </div>
+        </div>
+       </div>
+       <div class="page-back" style="background-color: #ffffff;">
+        <div class="h-full flex items-center justify-center p-8">
+         <p class="text-lg italic" style="color: #5a4a3a;">"The only way to do great work is to love what you do."</p>
+        </div>
+       </div>
+      </div><!-- Cover Page -->
+      <div class="page" data-page="0">
+       <div class="page-front cover-texture rounded-r-lg" style="background-color: #3d2314; box-shadow: inset -5px 0 15px rgba(0,0,0,0.3);">
+        <div class="h-full flex flex-col items-center justify-center p-8">
+         <div class="text-center">
+          <div class="mb-6"><span class="text-6xl">📜</span>
+          </div>
+          <h2 id="cover-title" class="title-font text-3xl font-bold mb-4" style="color: #c9a227;">My Certifications</h2>
+          <div class="w-32 h-1 mx-auto mb-4" style="background: linear-gradient(90deg, transparent, #c9a227, transparent);"></div>
+          <p class="text-lg" style="color: #d4b896;">A Collection of Achievements</p>
+          <p class="mt-8 text-sm" style="color: #a08060;">Click to open →</p>
+         </div>
+        </div>
+       </div>
+       <div class="page-back" style="background-color: #ffffff;">
+        <div class="h-full flex flex-col items-center justify-center p-8">
+         <div class="text-center">
+          <h3 class="title-font text-2xl font-semibold mb-4" style="color: #2c1810;">Table of Contents</h3>
+          <div class="space-y-3 text-left" style="color: #5a4a3a;">
+           <p>1. Web Development .............. <span style="color: #5a4a3a;">p.1</span></p>
+           <p>2. Data Science .................. <span style="color: #5a4a3a;">p.2</span></p>
+           <p>3. UX Design ..................... <span style="color: #5a4a3a;">p.3</span></p>
+           <p>4. Project Management ............ <span style="color: #5a4a3a;">p.4</span></p>
+          </div>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div>
+    </div>
+   </div><!-- Navigation -->
+   <div class="flex items-center gap-6 mt-8"><button id="prev-btn" class="px-6 py-2 rounded-full title-font font-semibold transition-all duration-300 hover:scale-105" style="background: linear-gradient(135deg, #c9a227, #f4d03f); color: #2c1810;"> ← Previous </button>
+    <div id="nav-dots" class="flex gap-3">
+     <div class="nav-dot active" style="background-color: #c9a227;" data-target="0"></div>
+     <div class="nav-dot" style="background-color: #5a4a3a;" data-target="1"></div>
+     <div class="nav-dot" style="background-color: #5a4a3a;" data-target="2"></div>
+     <div class="nav-dot" style="background-color: #5a4a3a;" data-target="3"></div>
+     <div class="nav-dot" style="background-color: #5a4a3a;" data-target="4"></div>
+    </div><button id="next-btn" class="px-6 py-2 rounded-full title-font font-semibold transition-all duration-300 hover:scale-105" style="background: linear-gradient(135deg, #c9a227, #f4d03f); color: #2c1810;"> Next → </button>
+   </div><!-- Instructions -->
+   <p class="mt-6 text-sm" style="color: #a08060;">Click on pages to flip them, or use the navigation buttons</p>
+  </div>
+  <script>
+    const defaultConfig = {
+      notebook_title: 'My Certifications',
+      cert_1_title: 'Web Development',
+      cert_1_issuer: 'Coursera',
+      cert_1_date: '2024',
+      cert_2_title: 'Data Science',
+      cert_2_issuer: 'Google',
+      cert_2_date: '2024',
+      cert_3_title: 'UX Design',
+      cert_3_issuer: 'Meta',
+      cert_3_date: '2023',
+      cert_4_title: 'Project Management',
+      cert_4_issuer: 'PMI',
+      cert_4_date: '2023',
+      primary_color: '#c9a227',
+      background_color: '#1a1a2e',
+      text_color: '#faf6e9',
+      accent_color: '#3d2314',
+      secondary_color: '#5a4a3a'
+    };
+    
+    let currentPage = 0;
+    const totalPages = 5;
+    
+    const pages = document.querySelectorAll('.page');
+    const navDots = document.querySelectorAll('.nav-dot');
+    const prevBtn = document.getElementById('prev-btn');
+    const nextBtn = document.getElementById('next-btn');
+    
+    function updatePageStacking() {
+      pages.forEach((page, index) => {
+        const pageNum = parseInt(page.dataset.page);
+        if (pageNum < currentPage) {
+          page.style.zIndex = pageNum;
+        } else {
+          page.style.zIndex = totalPages - pageNum;
+        }
+      });
+    }
+    
+    function flipToPage(targetPage) {
+      pages.forEach(page => {
+        const pageNum = parseInt(page.dataset.page);
+        if (pageNum < targetPage) {
+          page.classList.add('flipped');
+        } else {
+          page.classList.remove('flipped');
+        }
+      });
+      
+      currentPage = targetPage;
+      updateNavDots();
+      updatePageStacking();
+    }
+    
+    function updateNavDots() {
+      const config = window.elementSdk?.config || defaultConfig;
+      navDots.forEach((dot, index) => {
+        if (index === currentPage) {
+          dot.classList.add('active');
+          dot.style.backgroundColor = config.primary_color || defaultConfig.primary_color;
+        } else {
+          dot.classList.remove('active');
+          dot.style.backgroundColor = config.secondary_color || defaultConfig.secondary_color;
+        }
+      });
+    }
+    
+    // Page click handlers
+    pages.forEach(page => {
+      page.addEventListener('click', () => {
+        const pageNum = parseInt(page.dataset.page);
+        if (page.classList.contains('flipped')) {
+          flipToPage(pageNum);
+        } else {
+          flipToPage(pageNum + 1);
+        }
+      });
+    });
+    
+    // Navigation button handlers
+    prevBtn.addEventListener('click', () => {
+      if (currentPage > 0) {
+        flipToPage(currentPage - 1);
+      }
+    });
+    
+    nextBtn.addEventListener('click', () => {
+      if (currentPage < totalPages - 1) {
+        flipToPage(currentPage + 1);
+      }
+    });
+    
+    // Navigation dot handlers
+    navDots.forEach(dot => {
+      dot.addEventListener('click', () => {
+        const target = parseInt(dot.dataset.target);
+        flipToPage(target);
+      });
+    });
+    
+    // Initialize
+    updatePageStacking();
+    
+    // Element SDK Integration
+    async function onConfigChange(config) {
+      // Update main title
+      document.getElementById('main-title').textContent = '📚 ' + (config.notebook_title || defaultConfig.notebook_title);
+      document.getElementById('cover-title').textContent = config.notebook_title || defaultConfig.notebook_title;
+      
+      // Update certificates
+      document.getElementById('cert-1-title').textContent = config.cert_1_title || defaultConfig.cert_1_title;
+      document.getElementById('cert-1-issuer').textContent = config.cert_1_issuer || defaultConfig.cert_1_issuer;
+      document.getElementById('cert-1-date').textContent = config.cert_1_date || defaultConfig.cert_1_date;
+      
+      document.getElementById('cert-2-title').textContent = config.cert_2_title || defaultConfig.cert_2_title;
+      document.getElementById('cert-2-issuer').textContent = config.cert_2_issuer || defaultConfig.cert_2_issuer;
+      document.getElementById('cert-2-date').textContent = config.cert_2_date || defaultConfig.cert_2_date;
+      
+      document.getElementById('cert-3-title').textContent = config.cert_3_title || defaultConfig.cert_3_title;
+      document.getElementById('cert-3-issuer').textContent = config.cert_3_issuer || defaultConfig.cert_3_issuer;
+      document.getElementById('cert-3-date').textContent = config.cert_3_date || defaultConfig.cert_3_date;
+      
+      document.getElementById('cert-4-title').textContent = config.cert_4_title || defaultConfig.cert_4_title;
+      document.getElementById('cert-4-issuer').textContent = config.cert_4_issuer || defaultConfig.cert_4_issuer;
+      document.getElementById('cert-4-date').textContent = config.cert_4_date || defaultConfig.cert_4_date;
+      
+      // Update colors
+      const primaryColor = config.primary_color || defaultConfig.primary_color;
+      const bgColor = config.background_color || defaultConfig.background_color;
+      const textColor = config.text_color || defaultConfig.text_color;
+      
+      document.body.style.background = `linear-gradient(135deg, ${bgColor} 0%, ${adjustColor(bgColor, 20)} 50%, ${adjustColor(bgColor, 40)} 100%)`;
+      document.getElementById('main-title').style.color = textColor;
+      
+      prevBtn.style.background = `linear-gradient(135deg, ${primaryColor}, ${adjustColor(primaryColor, 30)})`;
+      nextBtn.style.background = `linear-gradient(135deg, ${primaryColor}, ${adjustColor(primaryColor, 30)})`;
+      
+      updateNavDots();
+    }
+    
+    function adjustColor(hex, percent) {
+      const num = parseInt(hex.replace('#', ''), 16);
+      const amt = Math.round(2.55 * percent);
+      const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+      const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
+      const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
+      return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+    }
+    
+    function mapToCapabilities(config) {
+      return {
+        recolorables: [
+          {
+            get: () => config.background_color || defaultConfig.background_color,
+            set: (value) => { config.background_color = value; window.elementSdk.setConfig({ background_color: value }); }
+          },
+          {
+            get: () => config.text_color || defaultConfig.text_color,
+            set: (value) => { config.text_color = value; window.elementSdk.setConfig({ text_color: value }); }
+          },
+          {
+            get: () => config.primary_color || defaultConfig.primary_color,
+            set: (value) => { config.primary_color = value; window.elementSdk.setConfig({ primary_color: value }); }
+          },
+          {
+            get: () => config.accent_color || defaultConfig.accent_color,
+            set: (value) => { config.accent_color = value; window.elementSdk.setConfig({ accent_color: value }); }
+          },
+          {
+            get: () => config.secondary_color || defaultConfig.secondary_color,
+            set: (value) => { config.secondary_color = value; window.elementSdk.setConfig({ secondary_color: value }); }
+          }
+        ],
+        borderables: [],
+        fontEditable: undefined,
+        fontSizeable: undefined
+      };
+    }
+    
+    function mapToEditPanelValues(config) {
+      return new Map([
+        ['notebook_title', config.notebook_title || defaultConfig.notebook_title],
+        ['cert_1_title', config.cert_1_title || defaultConfig.cert_1_title],
+        ['cert_1_issuer', config.cert_1_issuer || defaultConfig.cert_1_issuer],
+        ['cert_1_date', config.cert_1_date || defaultConfig.cert_1_date],
+        ['cert_2_title', config.cert_2_title || defaultConfig.cert_2_title],
+        ['cert_2_issuer', config.cert_2_issuer || defaultConfig.cert_2_issuer],
+        ['cert_2_date', config.cert_2_date || defaultConfig.cert_2_date],
+        ['cert_3_title', config.cert_3_title || defaultConfig.cert_3_title],
+        ['cert_3_issuer', config.cert_3_issuer || defaultConfig.cert_3_issuer],
+        ['cert_3_date', config.cert_3_date || defaultConfig.cert_3_date],
+        ['cert_4_title', config.cert_4_title || defaultConfig.cert_4_title],
+        ['cert_4_issuer', config.cert_4_issuer || defaultConfig.cert_4_issuer],
+        ['cert_4_date', config.cert_4_date || defaultConfig.cert_4_date]
+      ]);
+    }
+    
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities,
+        mapToEditPanelValues
+      });
+    } else {
+      onConfigChange(defaultConfig);
+    }
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9bd33661e6733c45',t:'MTc2ODI4OTY4MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
